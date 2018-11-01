@@ -9,20 +9,20 @@ PowerShell Functions for the Workfront API
  - PowerShell 3.0 or greater
 # Features
   - Retrieval of a workfront user
-        - By Email Address
-        - By First and Last Name
+    - By Email Address
+    - By First and Last Name
   - Retrieval of workfront tasks
-        - By Assigned to Email Address
-        - By a range of other filters such as description, Iteration, Team etc.
+    - By Assigned to Email Address
+    - By a range of other filters such as description, Iteration, Team etc.
   - Retrieval of Workfront Iterations
-        - By Team Name
-        - By Iteration Name
+    - By Team Name
+    - By Iteration Name
   - Retrieval of Workfront Teams
-        - By Team Name
+    - By Team Name
   - Retrieval of Workfront Timesheets (and Hours)
-        - By ID
-        - By User
-        - By Start and End Date
+    - By ID
+    - By User
+    - By Start and End Date
  - Creation of new Workfront Time Entries
 
 # Examples and Help
