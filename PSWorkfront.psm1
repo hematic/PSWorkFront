@@ -1,38 +1,46 @@
 Function Get-WorkfrontSessionID{
-    <#
+        <#
         .SYNOPSIS
         Function to retrieve a session ID for a specific workfront user
         .DESCRIPTION
-        This function allows you query the workfront REST API to retrieve a session idea for impersonation.
+        This function allows you query the workfront REST API to retrieve a sessionID for impersonation.
         .EXAMPLE
-        $SessionID = Get-WorkfrontSessionID -APIKey 'XXXXXXXXXXXXXXXXXX' -BaseURI 'company.my.workfront.com' -User 'smithjo'
+        $Splat = @{
+            apiKey = 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+            baseURL = company.my.workfront.com
+            user = 'marshph'
+        }
+        $SessionID = Get-WorkfrontSessionID @Splat
     #>
     [CmdletBinding(SupportsShouldProcess=$False,ConfirmImpact='Low')]
     Param(
         [Parameter(Mandatory=$True)]
-        [String]$APIKey,
+        [ValidateNotNullOrEmpty()]
+        [String]$apiKey,
         [Parameter(Mandatory=$True)]
-        [String]$BaseURI,
+        [ValidateNotNullOrEmpty()]
+        [String]$baseURL,
         [Parameter(Mandatory=$True)]
+        [ValidateNotNullOrEmpty()]
         [String]$User
     )
 
-    $URI = "https://$BaseURI/attask/api/v9.0/login?"
+    $URI = "https://$baseURL/attask/api/v9.0/login?"
     $headers = @{
-        "apiKey" = "$APIKey"
+        "apiKey" = "$apiKey"
         "username" = "$User"
     }
 
     #region Make API Call
     $Splat = @{
-        Method = 'Get'
+        Method = 'get'
         URI = $URI
         ContentType = 'application/x-www-form-urlencoded'
         Headers = $headers
     }
     Try{
         $Session = Invoke-WebRequest @Splat -ErrorAction Stop -Verbose
-        $ID = $Session.Content | Convertfrom-json | select -ExpandProperty data | Select -ExpandProperty sessionID
+        $ID = $Session.Content | Convertfrom-json | Select-Object -ExpandProperty data | Select-Object -ExpandProperty sessionID
         Return $ID
     }
     Catch{
@@ -48,25 +56,26 @@ Function Get-WorkfrontUser {
         .DESCRIPTION
         This function allows you query the workfront REST API using various filters to retrieve one or more users.
         .EXAMPLE
-        $User = Get-WorkfrontUser -emailAddr 'john.smith@whitecase.com' -apiKey 'XXXXXXXXXXXXXXXXXXXXXXXX' -baseURI 'company.my.workfront.com'
+        $Splat = @{
+            emailAddr = 'john.smith@company.com'
+            baseURL = company.my.workfront.com
+            apiKey = 'XXXXXXXXXXXXXXXXXXXXX'
+        }
+        $User = Get-WorkfrontUser @Splat
         .EXAMPLE
-        $User = Get-WorkfrontUser -firstName 'John' -lastname 'Smith' -apiKey 'XXXXXXXXXXXXXXXXXXXXXXXXX' -baseURI 'company.my.workfront.com'
+        $Splat = @{
+            firstName = 'John' #Case Sensitive
+            lastName = "Smith" #Case Sensitive
+            baseURL = company.my.workfront.com
+            apiKey = 'XXXXXXXXXXXXXXXXXXXXX'
+        }
+        $User = Get-WorkfrontUser @Splat
     #>
     [CmdletBinding(SupportsShouldProcess=$False,ConfirmImpact='Low',DefaultParameterSetName='ByEmail')]
     Param(
-        [Parameter(Mandatory=$True,ParameterSetName ='ByEmail')]
+        [Parameter(Mandatory=$True,ParameterSetName = 'ByEmail')]
         [Parameter(Mandatory=$False)]
         $emailAddr,
-
-        [Parameter(ParameterSetName = 'ByEmail')]
-        [Parameter(ParameterSetName = 'ByFirstLast')]
-        [Parameter(Mandatory=$True)]
-        [String]$apiKey,
-
-        [Parameter(ParameterSetName = 'ByEmail')]
-        [Parameter(ParameterSetName = 'ByFirstLast')]
-        [Parameter(Mandatory=$True)]
-        [String]$baseURI,
 
         [Parameter(Mandatory=$True,ParameterSetName = 'ByFirstLast')]
         [Parameter(Mandatory=$False)]
@@ -74,11 +83,19 @@ Function Get-WorkfrontUser {
 
         [Parameter(Mandatory=$True,ParameterSetName = 'ByFirstLast')]
         [Parameter(Mandatory=$False)]
-        $lastName
+        $lastName,
+
+        [Parameter(Mandatory=$True)]
+        [ValidateNotNullOrEmpty()]
+        [String]$apiKey,
+
+        [Parameter(Mandatory=$True)]
+        [ValidateNotNullOrEmpty()]
+        [String]$baseURL
     )
 
     #region Build URI
-    $URI = "https://$BaseURI/attask/api/v9.0/user/search?"
+    $URI = "https://$baseURL/attask/api/v9.0/user/search?"
     $Body = @{}
     $headers = @{
         "apiKey" = $apiKey
@@ -105,8 +122,8 @@ Function Get-WorkfrontUser {
         ContentType = 'application/json'
     }
     Try{
-        $Users = ((Invoke-WebRequest @Splat -ErrorAction Stop -Verbose).content | ConvertFrom-JSON).data
-        Return $Users
+        $User = ((Invoke-WebRequest @Splat -ErrorAction Stop -Verbose).content | ConvertFrom-JSON).data
+        Return $user
     }
     Catch{
         Write-error $_
@@ -121,67 +138,92 @@ Function Get-WorkfrontTasks {
         .DESCRIPTION
         This function allows you query the workfront REST API using various filters to retrieve one or more tasks.
         .EXAMPLE
-        $Tasks = Get-WorkfrontTasks -status 'INP' -name 'Install ansible' -APIKey 'XXXXXXXXXXXXXXXXXXXXXXXXXX'
+        $Splat = @{
+            assignedtoEmail = 'john.smith@outlook.com'
+            apiKey = 'XXXXXXXXXXXXXXXXXX'
+            baseURL = 'company.my.workfront.com'
+        }
+        $Tasks = Get-WorkfrontTasks @Splat
         .EXAMPLE
-        $Tasks = Get-WorkfrontTasks -AssignedToEmail 'john.smith@company.com' -apiKey 'XXXXXXXXXXXXXXXXXXXXXXXXXX' -baseURI 'company.my.workfront.com'
-
+        $Splat = @{
+            status = 'INP'
+            name  = 'Install ansible' #Case Sensitive
+            apiKey = 'XXXXXXXXXXXXXXXXXX'
+            baseURL = 'company.my.workfront.com'
+        }
+        $Tasks = Get-WorkfrontTasks @Splat
     #>
     [CmdletBinding(SupportsShouldProcess=$False,ConfirmImpact='Low',DefaultParameterSetName='ByAssignedTo')]
     Param(
         [Parameter(Mandatory=$True,ParameterSetName = 'ByAssignedTo')]
+        [Parameter(Mandatory=$False)]
         [String]$AssignedToEmail,
 
-        [Parameter(Mandatory=$True,ParameterSetName = 'ByAssignedTo')]
-        [Parameter(Mandatory=$True,ParameterSetName = 'ByFilters')]
-        [String]$apiKey,
-
-        [Parameter(Mandatory=$True,ParameterSetName = 'ByAssignedTo')]
-        [Parameter(Mandatory=$True,ParameterSetName = 'ByFilters')]
-        [String]$baseURI,
-
         [Parameter(Mandatory=$False,ParameterSetName = 'ByFilters')]
+        [Parameter(Mandatory=$False)]
         [String]$ID,
 
         [Parameter(Mandatory=$False,ParameterSetName = 'ByFilters')]
+        [Parameter(Mandatory=$False)]
         [String]$description,
 
         [Parameter(Mandatory=$False,ParameterSetName = 'ByFilters')]
+        [Parameter(Mandatory=$False)]
         [String]$iterationID,
 
         [Parameter(Mandatory=$False,ParameterSetName = 'ByFilters')]
+        [Parameter(Mandatory=$False)]
         [String]$name,
 
         [Parameter(Mandatory=$False,ParameterSetName = 'ByFilters')]
+        [Parameter(Mandatory=$False)]
         [ValidateSet('NEW','INP','CPL','CPA','CPI')]
         [String]$status,
 
         [Parameter(Mandatory=$False,ParameterSetName = 'ByFilters')]
+        [Parameter(Mandatory=$False)]
         [Int]$taskNumber,
 
         [Parameter(Mandatory=$False,ParameterSetName = 'ByFilters')]
-        [String]$teamID
+        [Parameter(Mandatory=$False)]
+        [String]$teamID,
+
+        [Parameter(Mandatory=$True)]
+        [ValidateNotNullOrEmpty()]
+        [String]$apiKey,
+
+        [Parameter(Mandatory=$True)]
+        [ValidateNotNullOrEmpty()]
+        [String]$baseURL
     )
 
     $headers = @{
         "apiKey" = $apiKey
         '$$LIMIT' = '2000'
     }
-    $URI = "https://$BaseURI/attask/api/v9.0/task/search?"
+    $URI = "https://$baseURL/attask/api/v9.0/task/search?"
 
     switch ($PsCmdlet.ParameterSetName){
         'ByAssignedTo'{
             Try{
-                $User = Get-WorkfrontUser -emailAddr 'phillip.marshall@whitecase.com' -apiKey $apiKey -baseURI $BaseURI -ErrorAction Stop
+                $Splat = @{
+                    emailAddr = $AssignedToEmail
+                    apiKey = $apiKey
+                    baseURL = $baseURL
+                }
+                $User = Get-WorkfrontUser @Splat -ErrorAction Stop
             }
             Catch{
                 Write-Error $_
             }
+
             $Body = @{}
             $Body."assignedTo:ID" = $User.ID
         }
+
         'ByFilters'{
             $Body = @{}
-            Foreach($Item in $PSBoundParameters.keys | where-object {$_ -ne "apiKey" -and $_ -ne "baseURI"}){
+            Foreach($Item in $($PSBoundParameters.keys | Where-Object {$_ -ne 'apikey' -and $_ -ne 'baseURL'})){
                 $Body.$Item = $PSBoundParameters.Item($Item)
             }
         }
@@ -211,12 +253,35 @@ Function Get-WorkfrontIteration {
         .DESCRIPTION
         This function allows you query the workfront REST API using various filters to retrieve one or more iterations.
         .EXAMPLE
-        $Iterations = Get-WorkfrontIteration -teamName 'team name' -apiKey 'XXXXXXXXXXXXXXXXXXXXXXXXXXXX' -BaseURI 'company.my.workfront.com'
+        $Splat = @{
+            name = 'Oct - 2018'
+            apiKey = 'XXXXXXXXXXXXXXXXXX'
+            baseURL = 'company.my.workfront.com'
+        }
+        $Tasks = Get-WorkfrontIteration @Splat
         .EXAMPLE
-        $Iterations = Get-WorkfrontIteration -teamName 'team name' -name 'iteration name' -apiKey 'XXXXXXXXXXXXXXXXXXXXXXXXXXXX' -BaseURI 'company.my.workfront.com'
+        $Splat = @{
+            teamID  = '5476515d003f132072e56a42a76ba6e9' 
+            name  = 'Oct - 2018'
+            apiKey = 'XXXXXXXXXXXXXXXXXX'
+            baseURL = 'company.my.workfront.com'
+        }
+        $Tasks = Get-WorkfrontIteration @Splat
         .EXAMPLE
-        $Iterations = Get-WorkfrontIteration -name 'iteration name' -apiKey 'XXXXXXXXXXXXXXXXXXXXXXXXXXXX' -BaseURI 'company.my.workfront.com'
-
+        $Splat = @{
+            teamID = '5476515d003f132072e56a42a76ba6e9'
+            apiKey = 'XXXXXXXXXXXXXXXXXX'
+            baseURL = 'company.my.workfront.com'
+        }
+        $Tasks = Get-WorkfrontIteration @Splat
+        .EXAMPLE
+        $Splat = @{
+            teamName 'Automation and Monitoring Team (Agile)' #Case Sensitive
+            name  = 'Oct - 2018'
+            apiKey = 'XXXXXXXXXXXXXXXXXX'
+            baseURL = 'company.my.workfront.com'
+        }
+        $Tasks = Get-WorkfrontIteration @Splat
     #>
     [CmdletBinding(SupportsShouldProcess=$False,ConfirmImpact='Low',DefaultParameterSetName='ByName')]
     Param(
@@ -225,16 +290,21 @@ Function Get-WorkfrontIteration {
         [Parameter(Mandatory=$False)]
         $name,
 
-        [Parameter(Mandatory=$True,ParameterSetName = 'ByTeam')]
+        [Parameter(Mandatory=$False,ParameterSetName = 'ByTeam')]
         [Parameter(Mandatory=$False)]
         $TeamName,
 
+        [Parameter(Mandatory=$False,ParameterSetName = 'ByTeam')]
+        [Parameter(Mandatory=$False)]
+        $teamID,
+
         [Parameter(Mandatory=$True)]
+        [ValidateNotNullOrEmpty()]
         [String]$apiKey,
 
         [Parameter(Mandatory=$True)]
-        [String]$baseURI
-
+        [ValidateNotNullOrEmpty()]
+        [String]$baseURL
     )
     $headers = @{
         "apiKey" = $apiKey
@@ -242,27 +312,33 @@ Function Get-WorkfrontIteration {
     }
     $Body = @{}
     $Body.fields = 'teamID'
-    $URI = "https://$BaseURI/attask/api/v9.0/iteration/search?"
+    $URI = "https://$baseURL/attask/api/v9.0/iteration/search?"
 
     switch ($PsCmdlet.ParameterSetName){
         'ByName'{
             $Body.name = $name
         }
         'ByTeam'{
-            Try{
-                $Team = Get-WorkfrontTeam -name $TeamName -apiKey $apiKey -baseURI $baseURI -ErrorAction Stop
-                If($Name){
-                    $Body.teamID = $Team.ID
-                    $Body.name = $name
-                }
-                Else{
-                    $Body.teamID = $Team.ID
+            If($TeamID){
+                Foreach($Item in $PSBoundParameters.keys | Where-object {$_ -ne 'TeamName' -and -$_ -ne 'apiKey' -and $_ -ne 'baseURL'}){
+                    $Body.$Item = $PSBoundParameters.Item($Item)
                 }
             }
-            Catch{
-                Write-Error $_
+            Else{
+                Try{
+                    $Team = Get-WorkfrontTeam -name $TeamName -ErrorAction Stop
+                    If($TeamName){
+                        $Body.teamID = $Team.ID
+                        $Body.name = $name
+                    }
+                    Else{
+                        $Body.teamID = $Team.ID
+                    }
+                }
+                Catch{
+                    Write-Error $_
+                }
             }
-
         }
     }
 
@@ -291,20 +367,28 @@ Function Get-WorkfrontTeam {
         .DESCRIPTION
         This function allows you query the workfront REST API using various filters to retrieve one or more teams.
         .EXAMPLE
-        $Team = Get-WorkfrontTeam -name 'team Name' -APIKey 'XXXXXXXXXXXXXXXXX' -baseURI 'company.my.workfront.com'
-
+        $Splat = @{
+            name = 'Automation and Monitoring Team (Agile)' #Case Sensitive
+            apiKey = 'XXXXXXXXXXXXXXXXXX'
+            baseURL = 'company.my.workfront.com'
+        }
+        $Tasks = Get-WorkfrontTeam @Splat        
     #>
     [CmdletBinding(SupportsShouldProcess=$False,ConfirmImpact='Low')]
     Param(
         [Parameter(Mandatory=$False)]
         [String]$name,
+
         [Parameter(Mandatory=$True)]
+        [ValidateNotNullOrEmpty()]
         [String]$apiKey,
+
         [Parameter(Mandatory=$True)]
-        [String]$baseURI
+        [ValidateNotNullOrEmpty()]
+        [String]$baseURL
     )
 
-    $URI = "https://$BaseURI/attask/api/v9.0/team/search?"
+    $URI = "https://$baseURL/attask/api/v9.0/team/search?"
     $headers = @{
         "apiKey" = $apiKey
         '$$LIMIT' = '2000'
@@ -338,13 +422,35 @@ Function Get-WorkfrontTimeSheet {
         .DESCRIPTION
         This function allows you query the workfront REST API using various filters to retrieve one or more timesheets.
         .EXAMPLE
-        Get-WorkfrontTimeSheet -ID '5bcc1686009f5e785b4829a0c80f8190' -APIKey 'XXXXXXXXXXXXXXXXXXXXX'
+        $Splat = @{
+            ID = '5bcc1686009f5e785b4829a0c80f8190'
+            apiKey = 'XXXXXXXXXXXXXXXXXXXXXXX'
+            baseURL = 'company.my.workfront.com'
+        }
+        Get-WorkfrontTimeSheet @Splat
         .EXAMPLE
-        $TimeSheet = Get-WorkfrontTimeSheet -ID '5bcc1686009f5e785b4829a0c80f8190' -APIKey 'XXXXXXXXXXXXXXXXXXXXX' -baseURI 'company.my.workfront.com' -Hours
+        $Splat = @{
+            ID = '5bcc1686009f5e785b4829a0c80f8190'
+            Hours = $True
+            apiKey = 'XXXXXXXXXXXXXXXXXXXXXXX'
+            baseURL = 'company.my.workfront.com'
+        }
+        Get-WorkfrontTimeSheet @Splat
         .EXAMPLE
-        $TimeSheets = Get-WorkfrontTimeSheet -userID '5731f646002798c3bdd7f83761f4c95a' -APIKey 'XXXXXXXXXXXXXXXXXXXXX' -baseURI 'company.my.workfront.com'
+        $Splat = @{
+            userID = '5731f646002798c3bdd7f83761f4c95a'
+            apiKey = 'XXXXXXXXXXXXXXXXXXXXXXX'
+            baseURL = 'company.my.workfront.com'
+        }
+        Get-WorkfrontTimeSheet @Splat
         .EXAMPLE
-        $TimeSheets = Get-WorkfrontTimeSheet -startDate '2018-10-21' -endDate '2018-10-27' -APIKey 'XXXXXXXXXXXXXXXXXXXXX' -baseURI 'company.my.workfront.com'
+        $Splat = @{
+            startDate = '2018-10-21'
+            endDate = '2018-10-27'
+            apiKey = 'XXXXXXXXXXXXXXXXXXXXXXX'
+            baseURL = 'company.my.workfront.com'
+        }
+        Get-WorkfrontTimeSheet @Splat
     #>
     [CmdletBinding(SupportsShouldProcess=$False,ConfirmImpact='Low',DefaultParameterSetName='ByID')]
     Param(
@@ -352,7 +458,7 @@ Function Get-WorkfrontTimeSheet {
         [Parameter(Mandatory=$False)]
         [String]$ID,
 
-        [Parameter(Mandatory=$False,ParameterSetName = 'ByID')]
+        [Parameter(Mandatory=$False)]
         [Switch]$Hours,
 
         [Parameter(Mandatory=$True,ParameterSetName = 'ByUserID')]
@@ -362,18 +468,21 @@ Function Get-WorkfrontTimeSheet {
         [Parameter(Mandatory=$True,ParameterSetName = 'ByDate')]
         [Parameter(Mandatory=$False)]
         [DateTime]$endDate,
+
         [Parameter(Mandatory=$False)]
         [datetime]$startDate,
 
         [Parameter(Mandatory=$True)]
+        [ValidateNotNullOrEmpty()]
         [String]$apiKey,
 
         [Parameter(Mandatory=$True)]
-        [String]$baseURI
+        [ValidateNotNullOrEmpty()]
+        [String]$baseURL
     )
 
     #region Build URI
-    $URI = "https://$baseURI/attask/api/v9.0/timesheet/search?"
+    $URI = "https://$baseURL/attask/api/v9.0/timesheet/search?"
     $headers = @{
         "apiKey" = $apiKey
         '$$LIMIT' = '2000'
@@ -423,42 +532,65 @@ Function New-WorkfrontTimeEntry {
         .DESCRIPTION
         This function allows you post to the workfront REST API to create a new time entry.
         .EXAMPLE
-        $TimeSheets = New-WorkfrontTimeEntry -sessionID $SessionID -baseURI 'company.my.workfront.com' -description 'Test Automated Entry' -hours 1.5 -entryDate '2018-10-30' -taskID '5a8c7a2b0538b78fc76198501a2bf751'
+        $Splat = @{
+            sessionID = $SessionID
+            description = 'This is a description of the time entry.'
+            hours = 1.5
+            entryDate = '2018-10-30'
+            taskID = '5a8c7a2b0538b78fc76198501a2bf751'
+        }
+        $TimeEntry = New-WorkfrontTimeEntry @Splat
     #>
     [CmdletBinding(SupportsShouldProcess=$False,ConfirmImpact='Low')]
     Param(
         [Parameter(Mandatory=$True)]
         [String]$sessionID,
-        [Parameter(Mandatory=$True)]
-        [String]$baseURI,
+
         [Parameter(Mandatory=$False)]
         [String]$description,
+
         [Parameter(Mandatory=$False)]
         [String]$entryDate,
+
         [Parameter(Mandatory=$False)]
         [Double]$hours,
+
         [Parameter(Mandatory=$False)]
         [String]$projectID,
+
         [Parameter(Mandatory=$False)]
         [string]$taskID,
+
         [Parameter(Mandatory=$False)]
-        [string]$timesheetID
+        [string]$timesheetID,
+
+        [Parameter(Mandatory=$True)]
+        [ValidateNotNullOrEmpty()]
+        [String]$baseURL
     )
 
-    $URI = "https://$baseURI/attask/api/v9.0/hour?"
-    $headers = @{
-        sessionID = $sessionID
+    #region Build URI
+    $baseURI = "https://$baseURL/attask/api/v9.0/hour?"
+    $SessionString = "&sessionID=$sessionID"
+    [String]$Script:FieldBody = ''
+    Foreach($Item in $($PSBoundParameters.keys | Where-Object {$_ -ne 'sessionID' -and $_ -ne 'baseURL'})){
+        If($Script:FieldBody -eq ''){
+            $Script:FieldBody = $Script:FieldBody + $Item + '=' + $($PSBoundParameters.Item($Item))
+        }
+        Else{
+            $Script:FieldBody = $Script:FieldBody + '&' + $Item + '=' + $($PSBoundParameters.Item($Item))
+        }
     }
-    $Body = @{}
-    Foreach($Item in $PSBoundParameters.keys | Where-Object {$_ -ne 'baseuri' -and $_ -ne 'sessionID'}){
-        $Body.$Item = $PSBoundParameters.Item($Item)
-    }
+
+    $URI = $baseURI + $Script:FieldBody + $SessionString
+    #endregion
+
+    #region Make API Call
 
     $Splat = @{
         Method = 'Post'
-        Headers = $headers
-        Body = $Body
         URI = $URI
+        ContentType = 'application/x-www-form-urlencoded'
     }
     Try{
         $TimeEntry = ((Invoke-WebRequest @Splat -ErrorAction Stop -Verbose).content | ConvertFrom-JSON).data
@@ -467,5 +599,6 @@ Function New-WorkfrontTimeEntry {
     Catch{
         Write-error $_
     }
+    #endregion
 
 }
